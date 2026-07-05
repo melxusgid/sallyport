@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "sallyport"
+version = "0.1.0"
+description = "Lightweight REST API wrapper around Fortress stealth Chromium engine"
+authors = [
+    {name = "FromTheScope"},
+]
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+    "pydantic>=2.0.0",
+    "tilion-fortress>=0.1.0",
+    "playwright>=1.50.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/fromthescope/sallyport"

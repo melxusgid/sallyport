@@ -1,0 +1,29 @@
+# Sallyport — Stealth browser REST API
+
+Sallyport is a lightweight REST API wrapper around Fortress (a stealth Chromium engine). It exposes HTTP endpoints so AI agents can browse anti-bot-protected websites with simple curl commands.
+
+## Quick setup
+
+```bash
+docker run -d --rm -p 9378:9378 fromthescope/sallyport:latest
+curl -X POST http://localhost:9378/browser/start -H "Content-Type: application/json" -d '{}'
+curl -X POST http://localhost:9378/tabs -H "Content-Type: application/json" -d '{"url":"https://example.com","wait_ms":3000}'
+```
+
+## Key endpoints
+
+- `GET /health` — server status
+- `POST /browser/start` — launch Fortress (optional: channel, persona)
+- `POST /browser/stop` — kill browser
+- `POST /tabs` — open URL → tab_id + accessibility tree
+- `GET /tabs/{id}/snapshot` — get page content as structured tree
+- `POST /tabs/{id}/evaluate` — run JS
+- `DELETE /tabs/{id}` — close tab
+
+## Rules
+
+1. Fortress already spoofs fingerprints in C++. Do NOT add puppeteer-stealth or JS stealth plugins.
+2. Connect over CDP (:9222), NOT chromedriver.
+3. Blocked probably means your IP, not the fingerprint. Use a residential proxy.
+
+Full docs: https://github.com/melxusgid/sallyport

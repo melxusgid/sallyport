@@ -49,6 +49,11 @@ class BrowserStopResponse(BaseModel):
 class TabOpenRequest(BaseModel):
     url: str
     wait_ms: int = Field(default=3000, ge=0, le=30000)
+    wait_for: Optional[str] = Field(
+        default=None,
+        description="Wait condition: 'domcontentloaded', 'load', 'networkidle', or CSS selector string. Overrides wait_ms when set.",
+    )
+    timeout_ms: int = Field(default=15000, ge=1000, le=60000)
 
 
 class TabOpenResponse(BaseModel):
@@ -150,7 +155,7 @@ def tab_open(req: TabOpenRequest):
     if not engine._running:
         raise HTTPException(status_code=400, detail="Browser not started. POST /browser/start first.")
 
-    tab = engine.open_tab(url=req.url, wait_ms=req.wait_ms)
+    tab = engine.open_tab(url=req.url, wait_ms=req.wait_ms, wait_for=req.wait_for, timeout_ms=req.timeout_ms)
     snapshot = engine.snapshot_tab(tab.tab_id)
 
     return TabOpenResponse(

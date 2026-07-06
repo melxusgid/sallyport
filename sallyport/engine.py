@@ -88,14 +88,49 @@ class SallyportEngine:
                 pass
             self.fortress = None
 
-    def open_tab(self, url: str, wait_ms: int = 3000) -> Tab:
+    def _wait_for_page(
+        self,
+        page: Page,
+        wait_for: Optional[str] = None,
+        timeout_ms: int = 15000,
+    ) -> None:
+        """Wait for a page condition instead of sleeping blindly.
+
+        Supported wait_for values:
+        - None / "domcontentloaded" — fastest, JS init only
+        - "load" — all resources (images, stylesheets)
+        - "networkidle" — no network activity for 500ms (heaviest)
+        - A CSS selector string — wait for element to appear in DOM
+        """
+        if wait_for is None or wait_for == "domcontentloaded":
+            page.wait_for_load_state("domcontentloaded", timeout=timeout_ms)
+        elif wait_for == "load":
+            page.wait_for_load_state("load", timeout=timeout_ms)
+        elif wait_for == "networkidle":
+            page.wait_for_load_state("networkidle", timeout=timeout_ms)
+        else:
+            # Treat as CSS selector — wait for the element
+            page.wait_for_selector(wait_for, timeout=timeout_ms)
+
+    def open_tab(
+        self,
+        url: str,
+        wait_ms: int = 3000,
+        wait_for: Optional[str] = None,
+        timeout_ms: int = 15000,
+    ) -> Tab:
         """Open a new tab and navigate to URL."""
         if not self._running or not self.browser:
             raise RuntimeError("Engine not started. Call start() first.")
 
         page = self.browser.new_page()
         page.goto(url, wait_until="domcontentloaded")
-        time.sleep(wait_ms / 1000)
+
+        # Smart wait — replaces blind sleep
+        if wait_for:
+            self._wait_for_page(page, wait_for=wait_for, timeout_ms=timeout_ms)
+        elif wait_ms > 0:
+            time.sleep(wait_ms / 1000)
 
         # Create CDP session for this page
         contexts = self.browser.contexts

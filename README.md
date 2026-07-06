@@ -71,6 +71,10 @@ curl -X POST http://localhost:9378/browser/stop
 | `POST` | `/browser/stop` | Kill Fortress, clean up all tabs |
 | `POST` | `/tabs` | Open URL → tab ID + snapshot |
 | `GET` | `/tabs/{id}/snapshot` | Accessibility tree content |
+| `GET` | `/tabs` | List all open tabs with URL, age |
+| `GET` | `/tabs/{id}/source` | Raw rendered HTML (full DOM after JS) |
+| `POST` | `/tabs/{id}/scroll` | Scroll up/down/left/right by px |
+| `POST` | `/tabs/{id}/screenshot` | Base64 PNG screenshot (supports full_page) |
 | `POST` | `/tabs/{id}/click` | Click element by ref |
 | `POST` | `/tabs/{id}/type` | Type text into element |
 | `POST` | `/tabs/{id}/evaluate` | Run JS, get result |

@@ -421,3 +421,15 @@ class SallyportEngine:
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def source_tab(self, tab_id: str) -> Optional[dict]:
+        """Get the rendered page HTML source."""
+        tab = self.get_tab(tab_id)
+        if not tab:
+            return None
+
+        try:
+            html = tab.page.content()
+            return {"success": True, "html": html, "url": tab.url}
+        except Exception as e:
+            return {"success": False, "error": str(e)}

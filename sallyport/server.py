@@ -242,6 +242,22 @@ def tab_navigate(tab_id: str, req: NavigateRequest):
     return ActionResponse(**result)
 
 
+@app.get("/tabs/{tab_id}/source")
+def tab_source(tab_id: str):
+    """Get the rendered HTML source of a tab."""
+    tab = engine.get_tab(tab_id)
+    if not tab:
+        raise HTTPException(status_code=404, detail=f"Tab {tab_id} not found")
+
+    result = engine.source_tab(tab_id)
+    if not result:
+        raise HTTPException(status_code=500, detail="Failed to get page source")
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
+
+    return {"success": True, "html": result["html"], "url": result["url"], "tab_id": tab_id, "html_length": len(result["html"])}
+
+
 @app.post("/tabs/{tab_id}/screenshot", response_model=ActionResponse)
 def tab_screenshot(tab_id: str, req: ScreenshotRequest):
     """Take a screenshot of the tab — returns base64 PNG."""

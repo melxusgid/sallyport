@@ -369,3 +369,20 @@ class SallyportEngine:
             return {"success": True, "url": tab.url}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def screenshot_tab(self, tab_id: str, full_page: bool = False) -> Optional[dict]:
+        """Take a screenshot of a tab and return it as base64 PNG."""
+        tab = self.get_tab(tab_id)
+        if not tab:
+            return None
+
+        try:
+            img_b64 = tab.page.screenshot(full_page=full_page, type="png")
+            import base64
+            return {
+                "success": True,
+                "image_base64": base64.b64encode(img_b64).decode("utf-8"),
+                "full_page": full_page,
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}

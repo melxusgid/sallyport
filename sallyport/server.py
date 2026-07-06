@@ -88,6 +88,10 @@ class NavigateRequest(BaseModel):
     url: str
 
 
+class ScreenshotRequest(BaseModel):
+    full_page: bool = Field(default=False, description="Capture full scrollable page")
+
+
 class HealthResponse(BaseModel):
     status: str
     version: str
@@ -231,6 +235,29 @@ def tab_navigate(tab_id: str, req: NavigateRequest):
         raise HTTPException(status_code=500, detail="Navigate failed")
 
     return ActionResponse(**result)
+
+
+@app.post("/tabs/{tab_id}/screenshot", response_model=ActionResponse)
+def tab_screenshot(tab_id: str, req: ScreenshotRequest):
+    """Take a screenshot of the tab — returns base64 PNG."""
+    tab = engine.get_tab(tab_id)
+    if not tab:
+        raise HTTPException(status_code=404, detail=f"Tab {tab_id} not found")
+
+    result = engine.screenshot_tab(tab_id, full_page=req.full_page)
+    if not result:
+        raise HTTPException(status_code=500, detail="Screenshot failed")
+    if not result.get("success"):
+        return ActionResponse(success=False, error=result.get("error"))
+
+    return ActionResponse(
+        success=True,
+        result={
+            "image_base64": result["image_base64"],
+            "full_page": result["full_page"],
+            "tab_id": tab_id,
+        },
+    )
 
 
 @app.delete("/tabs/{tab_id}", response_model=ActionResponse)

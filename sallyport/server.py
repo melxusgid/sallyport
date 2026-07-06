@@ -93,6 +93,11 @@ class NavigateRequest(BaseModel):
     url: str
 
 
+class ScrollRequest(BaseModel):
+    direction: str = Field(default="down", pattern="^(up|down|left|right)$")
+    amount: int = Field(default=500, ge=50, le=5000)
+
+
 class ScreenshotRequest(BaseModel):
     full_page: bool = Field(default=False, description="Capture full scrollable page")
 
@@ -256,6 +261,27 @@ def tab_source(tab_id: str):
         raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
 
     return {"success": True, "html": result["html"], "url": result["url"], "tab_id": tab_id, "html_length": len(result["html"])}
+
+
+@app.get("/tabs", response_model=dict)
+def tab_list():
+    """List all open tabs with URL and age."""
+    tabs = engine.get_tabs_info()
+    return {"success": True, "tabs": tabs, "count": len(tabs)}
+
+
+@app.post("/tabs/{tab_id}/scroll", response_model=ActionResponse)
+def tab_scroll(tab_id: str, req: ScrollRequest):
+    """Scroll the page in a direction."""
+    tab = engine.get_tab(tab_id)
+    if not tab:
+        raise HTTPException(status_code=404, detail=f"Tab {tab_id} not found")
+
+    result = engine.scroll_tab(tab_id, direction=req.direction, amount=req.amount)
+    if not result:
+        raise HTTPException(status_code=500, detail="Scroll failed")
+
+    return ActionResponse(success=result.get("success", False), result={k: v for k, v in result.items() if k != "success"}, error=result.get("error"))
 
 
 @app.post("/tabs/{tab_id}/screenshot", response_model=ActionResponse)

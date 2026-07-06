@@ -405,6 +405,34 @@ class SallyportEngine:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def scroll_tab(self, tab_id: str, direction: str = "down", amount: int = 500) -> Optional[dict]:
+        """Scroll a tab by pixel amount."""
+        tab = self.get_tab(tab_id)
+        if not tab:
+            return None
+
+        try:
+            sign = 1 if direction in ("down", "right") else -1
+            axis = "scrollLeft" if direction in ("left", "right") else "scrollTop"
+            expr = f"window.{axis} += {sign * amount}"
+            tab.page.evaluate(expr)
+            new_pos = tab.page.evaluate(f"window.{axis}")
+            return {"success": True, "direction": direction, "amount": amount, f"{axis}": new_pos}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def get_tabs_info(self) -> list[dict]:
+        """Return info about all open tabs."""
+        return [
+            {
+                "tab_id": t.tab_id,
+                "url": t.url,
+                "created_at": t.created_at,
+                "age_seconds": time.time() - t.created_at,
+            }
+            for t in self.tabs.values()
+        ]
+
     def screenshot_tab(self, tab_id: str, full_page: bool = False) -> Optional[dict]:
         """Take a screenshot of a tab and return it as base64 PNG."""
         tab = self.get_tab(tab_id)

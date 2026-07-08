@@ -342,7 +342,7 @@ class SallyportEngine:
         render_node(root_id)
         return "\n".join(lines)
 
-    def click_element(self, tab_id: str, selector: str) -> Optional[dict]:
+    def click_element(self, tab_id: str, selector: str, timeout_ms: int = 5000) -> Optional[dict]:
         """Click an element identified by CSS selector or text-based approach."""
         tab = self.get_tab(tab_id)
         if not tab:
@@ -352,13 +352,13 @@ class SallyportEngine:
             # Try as a CSS selector first
             element = tab.page.query_selector(selector)
             if element:
-                element.click()
+                element.click(timeout=timeout_ms, no_wait_after=True)
                 return {"success": True, "method": "css", "selector": selector}
 
             # Try as text content match
             element = tab.page.get_by_text(selector, exact=True).first
             if element:
-                element.click()
+                element.click(timeout=timeout_ms, no_wait_after=True)
                 return {"success": True, "method": "text", "selector": selector}
 
             return {"success": False, "error": f"Element not found: {selector}"}
@@ -406,18 +406,18 @@ class SallyportEngine:
             return {"success": False, "error": str(e)}
 
     def scroll_tab(self, tab_id: str, direction: str = "down", amount: int = 500) -> Optional[dict]:
-        """Scroll a tab by pixel amount."""
+        """Scroll a tab by pixel amount using window.scrollBy()."""
         tab = self.get_tab(tab_id)
         if not tab:
             return None
 
         try:
-            sign = 1 if direction in ("down", "right") else -1
-            axis = "scrollLeft" if direction in ("left", "right") else "scrollTop"
-            expr = f"window.{axis} += {sign * amount}"
-            tab.page.evaluate(expr)
-            new_pos = tab.page.evaluate(f"window.{axis}")
-            return {"success": True, "direction": direction, "amount": amount, f"{axis}": new_pos}
+            dx = amount if direction == "right" else (-amount if direction == "left" else 0)
+            dy = amount if direction == "down" else (-amount if direction == "up" else 0)
+            tab.page.evaluate(f"window.scrollBy({dx}, {dy})")
+            new_x = tab.page.evaluate("window.scrollX")
+            new_y = tab.page.evaluate("window.scrollY")
+            return {"success": True, "direction": direction, "amount": amount, "scrollX": new_x, "scrollY": new_y}
         except Exception as e:
             return {"success": False, "error": str(e)}
 

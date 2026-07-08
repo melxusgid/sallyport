@@ -7,17 +7,24 @@ Sallyport is a lightweight REST API wrapper around Fortress (a stealth Chromium 
 ```bash
 docker run -d --rm -p 9378:9378 fromthescope/sallyport:latest
 curl -X POST http://localhost:9378/browser/start -H "Content-Type: application/json" -d '{}'
-curl -X POST http://localhost:9378/tabs -H "Content-Type: application/json" -d '{"url":"https://example.com","wait_ms":3000}'
+curl -X POST http://localhost:9378/tabs -H "Content-Type: application/json" -d '{"url":"https://example.com","wait_for":"domcontentloaded"}'
 ```
 
 ## Key endpoints
 
-- `GET /health` — server status
+- `GET /health` — server status, version, uptime, tab count
 - `POST /browser/start` — launch Fortress (optional: channel, persona)
-- `POST /browser/stop` — kill browser
-- `POST /tabs` — open URL → tab_id + accessibility tree
+- `POST /browser/stop` — kill browser, close all tabs
+- `POST /tabs` — open URL → tab_id + accessibility tree snapshot
 - `GET /tabs/{id}/snapshot` — get page content as structured tree
-- `POST /tabs/{id}/evaluate` — run JS
+- `GET /tabs/{id}/source` — raw rendered HTML (full DOM after JS)
+- `GET /tabs` — list all open tabs with URL and age
+- `POST /tabs/{id}/scroll` — scroll up/down/left/right by pixels
+- `POST /tabs/{id}/screenshot` — base64 PNG (viewport or full-page)
+- `POST /tabs/{id}/click` — click element by CSS selector or text
+- `POST /tabs/{id}/type` — type text into a field
+- `POST /tabs/{id}/evaluate` — run JS, get result
+- `POST /tabs/{id}/navigate` — navigate existing tab to new URL
 - `DELETE /tabs/{id}` — close tab
 
 ## Rules

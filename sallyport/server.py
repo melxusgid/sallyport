@@ -72,6 +72,7 @@ class TabSnapshotResponse(BaseModel):
 
 class ClickRequest(BaseModel):
     ref: str
+    timeout_ms: int = Field(default=5000, ge=500, le=30000, description="Max ms to wait for click action")
 
 
 class TypeRequest(BaseModel):
@@ -87,6 +88,11 @@ class ActionResponse(BaseModel):
     success: bool
     result: Optional[object] = None
     error: Optional[str] = None
+    url: Optional[str] = None
+    selector: Optional[str] = None
+    method: Optional[str] = None
+    scrollX: Optional[int] = None
+    scrollY: Optional[int] = None
 
 
 class NavigateRequest(BaseModel):
@@ -197,8 +203,7 @@ def tab_click(tab_id: str, req: ClickRequest):
     if not tab:
         raise HTTPException(status_code=404, detail=f"Tab {tab_id} not found")
 
-    # The 'ref' parameter is reused as a CSS selector or text content
-    result = engine.click_element(tab_id, req.ref)
+    result = engine.click_element(tab_id, req.ref, timeout_ms=req.timeout_ms)
     if not result:
         raise HTTPException(status_code=500, detail="Click failed")
 
@@ -281,7 +286,13 @@ def tab_scroll(tab_id: str, req: ScrollRequest):
     if not result:
         raise HTTPException(status_code=500, detail="Scroll failed")
 
-    return ActionResponse(success=result.get("success", False), result={k: v for k, v in result.items() if k != "success"}, error=result.get("error"))
+    return ActionResponse(
+        success=result.get("success", False),
+        error=result.get("error"),
+        scrollX=result.get("scrollX"),
+        scrollY=result.get("scrollY"),
+        result={k: v for k, v in result.items() if k not in ("success", "error", "scrollX", "scrollY")},
+    )
 
 
 @app.post("/tabs/{tab_id}/screenshot", response_model=ActionResponse)

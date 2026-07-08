@@ -30,6 +30,11 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /root/.cache/ms-playwright /root/.cache/ms-playwright
 
+# Runtime also needs Chromium/Fortress shared libraries; the builder's apt packages
+# do not carry into this final slim image.
+RUN playwright install-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy application
 COPY sallyport/ sallyport/
 COPY pyproject.toml .

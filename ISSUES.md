@@ -1,32 +1,33 @@
 # Sallyport — Known Issues & Roadmap
 
 > Logged 2026-07-08 after a full repo health audit.
-> These are **tracked, not fixed** — transparent record of what needs work before v0.2.0.
+> Updated 2026-07-08 after ponytail QA/QC, regression tests, Docker runtime fix, and container smoke testing.
+> Items marked **Resolved** were fixed after the original audit; remaining items are still tracked for v0.2.0.
 
 ---
 
 ## P0 — Broken / Blocked (blocks basic use)
 
-### #1: Docker image never pushed to Docker Hub
-`fromthescope/sallyport:latest` returns **404** on hub.docker.com. The README, llms.txt, and Hermes skill all reference `docker run fromthescope/sallyport:latest` as the primary launch method, but the image doesn't exist.
+### #1: Docker image never pushed to Docker Hub — **Resolved pending publish**
+`fromthescope/sallyport:latest` returned **404** on hub.docker.com. The README, llms.txt, and Hermes skill referenced `docker run fromthescope/sallyport:latest` as the primary launch method, but the image didn't exist.
 
-**Fix:** Build and push the Docker image to Docker Hub under the `fromthescope` org (or update docs if the org path changed).
+**Fix:** Built and smoke-tested the Docker image locally. The final runtime image now installs Chromium/Fortress shared-library dependencies; without that, Fortress failed with `libglib-2.0.so.0: cannot open shared object file`. Use `--platform linux/amd64 --shm-size=1g` because tilion-fortress does not currently ship a native Linux ARM64 Fortress binary.
 
 ---
 
-### #2: Zero tests
-- `engine.py` — 463 lines, 0 test coverage
-- `server.py` — 329 lines, 0 test coverage
-- No `tests/` directory, no pytest config, no test runner
+### #2: Zero tests — **Partially resolved**
+- `engine.py` — had 463 lines, 0 test coverage
+- `server.py` — had 329 lines, 0 test coverage
+- No `tests/` directory, no test runner
 
 **Risk:** Any change is a blind merge. The 5 commits on July 5 (screenshot, smart wait, source, tab list, scroll) were pushed without tests.
 
-**Fix:** Write tests for:
-- Engine lifecycle (start → open_tab → snapshot → evaluate → close_tab → stop)
-- AX tree rendering (known page structures)
-- Error paths (Fortress crash, bad URL, CDP disconnect)
-- Concurrent tab management
-- Then add CI to enforce them
+**Fix shipped:** Added stdlib `unittest` regression coverage for the three bugs found by real-world testing:
+- Scroll uses `window.scrollBy()` and returns `scrollX`/`scrollY`
+- Click passes `timeout` and `no_wait_after=True` so form/navigation clicks don't hang forever
+- `ActionResponse` preserves `url`, `selector`, `method`, and scroll fields
+
+**Still needed:** Broader integration tests for lifecycle, AX tree rendering, crash recovery, and concurrent tab management.
 
 ---
 
@@ -43,9 +44,14 @@ No `.github/workflows/` directory. The repo has no:
 
 ## P1 — Wrong / Misleading (hurts first impressions)
 
-### #4: pyproject.toml has wrong homepage URL
+### #4: pyproject.toml had wrong homepage URL — **Resolved**
+Original broken metadata:
 ```toml
 Homepage = "https://github.com/fromthescope/sallyport"
+```
+Fixed metadata:
+```toml
+Homepage = "https://github.com/melxusgid/sallyport"
 ```
 Actual repo: `https://github.com/melxusgid/sallyport`
 
@@ -53,7 +59,7 @@ Actual repo: `https://github.com/melxusgid/sallyport`
 
 ---
 
-### #5: llms.txt is stale
+### #5: llms.txt was stale — **Resolved**
 `llms.txt` was written for v0.1.0 initial release and only lists **6 of 14 endpoints**. Missing:
 - `GET /tabs` — list tabs
 - `GET /tabs/{id}/source` — raw HTML
@@ -66,9 +72,11 @@ Actual repo: `https://github.com/melxusgid/sallyport`
 
 Also missing: the `persona` parameter on `/browser/start`, the `wait_for` parameter on `/tabs`, the `timeout_ms` parameter.
 
+**Fix shipped:** Rewrote `llms.txt` with all 14 endpoints and Docker launch notes.
+
 ---
 
-### #6: examples/curl-demo.sh doesn't cover new endpoints
+### #6: examples/curl-demo.sh didn't cover new endpoints — **Resolved**
 The demo script at `examples/curl-demo.sh` was written for the initial 6-endpoint release. It doesn't demonstrate:
 - Scroll
 - Source
@@ -76,6 +84,8 @@ The demo script at `examples/curl-demo.sh` was written for the initial 6-endpoin
 - Tab list
 - Smart wait (`wait_for` instead of `wait_ms`)
 - Navigating existing tabs
+
+**Fix shipped:** Rewrote `examples/curl-demo.sh` to cover health, start, smart tab open, snapshot, source, evaluate, scroll, screenshot, tab list, navigate, close, and stop.
 
 ---
 

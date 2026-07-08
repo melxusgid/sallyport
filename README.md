@@ -33,7 +33,7 @@ No Playwright scripts. No CDP boilerplate. No anti-bot configuration.
 ### Docker
 
 ```bash
-docker run -d --rm -p 9378:9378 fromthescope/sallyport:latest
+docker run -d --rm --platform linux/amd64 --shm-size=1g -p 9378:9378 fromthescope/sallyport:latest
 ```
 
 ### Local
@@ -142,7 +142,7 @@ Sallyport is a REST API wrapper around Fortress, an open-source stealth Chromium
 It exposes HTTP endpoints so any agent can browse anti-bot-protected sites with curl.
 
 LAUNCH:
-  docker run -d --rm -p 9378:9378 fromthescope/sallyport:latest
+  docker run -d --rm --platform linux/amd64 --shm-size=1g -p 9378:9378 fromthescope/sallyport:latest
   curl -X POST http://localhost:9378/browser/start -H "Content-Type: application/json" -d '{}'
   curl -X POST http://localhost:9378/tabs -H "Content-Type: application/json" -d '{"url":"<URL>","wait_ms":3000}'
 

@@ -5,7 +5,7 @@ Sallyport is a lightweight REST API wrapper around Fortress (a stealth Chromium 
 ## Quick setup
 
 ```bash
-docker run -d --rm -p 9378:9378 fromthescope/sallyport:latest
+docker run -d --rm --platform linux/amd64 --shm-size=1g -p 9378:9378 fromthescope/sallyport:latest
 curl -X POST http://localhost:9378/browser/start -H "Content-Type: application/json" -d '{}'
 curl -X POST http://localhost:9378/tabs -H "Content-Type: application/json" -d '{"url":"https://example.com","wait_for":"domcontentloaded"}'
 ```

@@ -219,4 +219,4 @@ MIT. The upstream Fortress engine is BSD-3.
 
 ---
 
-*Built by [FromTheScope](https://buymeacoffee.com/fromthescope). If Sallyport saves you time or money, [coffee's appreciated ☕](https://buymeacoffee.com/fromthescope).*
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-ffdd00?logo=buymeacoffee&logoColor=000)](https://buymeacoffee.com/fromthescope)

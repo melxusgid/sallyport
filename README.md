@@ -28,6 +28,36 @@ No Playwright scripts. No CDP boilerplate. No anti-bot configuration.
 - **Camofox-compatible** — Same endpoint pattern (`POST /tabs`, `GET /tabs/{id}/snapshot`).
 - **Open source** — MIT license. Build on it, fork it, ship it.
 
+## Known limits
+
+Sallyport inherits some constraints from the upstream Fortress engine and its own architecture. These are surfaced here so you can decide when it's the right tool.
+
+| Limit | Detail | Workaround |
+|-------|--------|------------|
+| **Cloudflare Turnstile Managed Challenge** | Fortress cannot bypass interactive Turnstile captchas (the checkbox/puzzle-wall variant). The snapshot returns a Cloudflare challenge page, not real content. | Use a residential proxy or try the URL via Wayback Machine / Google cache. This is a Fortress engine limitation. |
+| **Datacenter IP blocking** | Servers that block datacenter IP ranges will reject requests regardless of browser fingerprint. | Use a residential proxy via the engine's proxy config (planned). |
+| **Single browser instance** | Only one Fortress instance at a time. Switching personas requires stop/start. | N/A — architectural limit tracked for v0.2.0. |
+| **No crash recovery** | If Fortress crashes mid-session, the engine enters a broken state. Manual stop/start required. | Tracked for v0.2.0. |
+| **No concurrent request locks** | Shared mutable state (tabs, browser ref) has no threading locks. Unlikely to race on single-user setups. | Tracked for v0.2.0. |
+| **No cookie/session persistence** | Each tab opens a fresh context. Auth sessions are lost on tab close. | Tracked for v0.2.0. |
+
+[Full issue tracker →](ISSUES.md)
+
+## Benchmarks
+
+Measured on a Mac Mini (Apple M-series, ARM64) with Sallyport v0.1.0 + Fortress stable:
+
+| Operation | Median | Worst case |
+|-----------|--------|------------|
+| Open tab | 1.43s | 3.07s |
+| Snapshot (simple page) | 5.2ms | 43.6ms |
+| Snapshot (heavy page) | 65.6ms | 187.8ms |
+| JS evaluate | 3.8ms | 51.4ms |
+| Scroll | 14.7ms | 22.0ms |
+| Screenshot | 47.9ms | 97.7ms |
+
+[Full benchmark methodology and raw data →](BENCHMARKS.md)
+
 ## Quick start
 
 ### Docker
@@ -67,6 +97,7 @@ curl -X POST http://localhost:9378/browser/stop
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/health` | Server status, tab count, uptime |
+| `GET` | `/config` | Server config and feature flag state |
 | `POST` | `/browser/start` | Launch Fortress with optional persona |
 | `POST` | `/browser/stop` | Kill Fortress, clean up all tabs |
 | `POST` | `/tabs` | Open URL → tab ID + snapshot |
@@ -125,6 +156,10 @@ Agent/Hermes ──curl──> Sallyport (:9378) ──CDP──> Fortress (:922
 | TLS shape | Chromium | Chromium | Firefox (sticks out) | **Chromium** |
 | Agent-friendly REST API | ❌ | ❌ | ❌ (Camofox adds it) | **✅ built in** |
 | Open source | ✅ | ✅ | ✅ (MPL) | **✅ (MIT)** |
+| **Worst case**<br>Cloudflare Turnstile Managed Challenge | blocked | blocked | blocked | **blocked** (Fortress limitation) |
+| **Worst case**<br>Tab open latency | 0.8–1.5s | 0.8–1.5s | 1.0–2.0s | **1.1–3.1s** (measured, includes CDP setup) |
+
+Worst-case numbers are from [published benchmarks](BENCHMARKS.md). We measured the case that matters most: opening a new tab and getting content. Stock Playwright numbers are from the same hardware for reference.
 
 ## Environment
 
@@ -134,6 +169,26 @@ Agent/Hermes ──curl──> Sallyport (:9378) ──CDP──> Fortress (:922
 | `SALLYPORT_PORT` | `9378` | Server port |
 | `FORT_CHANNEL` | `stable` | `stable` (Chromium 149) or `latest` (151) |
 | `FORT_PORT` | `9222` | Fortress CDP port |
+
+## Feature flags (kill switches)
+
+Every capability can be disabled at startup via environment variable. These let operators minimize surface area when running Sallyport in restricted environments.
+
+| Variable | Default | Effect when set to `true` |
+|---|---|---|
+| `SALLYPORT_DISABLE_SNAPSHOT` | (empty) | Blocks all AX tree snapshot endpoints. Tab opens return empty snapshots. |
+| `SALLYPORT_DISABLE_AUTO_SNAPSHOT` | (empty) | `POST /tabs` returns only `tab_id` + `url` (no snapshot inline). Useful for head-of-line blocking avoidance. |
+| `SALLYPORT_DISABLE_JS_EVAL` | (empty) | Blocks `POST /tabs/{id}/evaluate`. |
+| `SALLYPORT_DISABLE_SCREENSHOT` | (empty) | Blocks `POST /tabs/{id}/screenshot`. |
+| `SALLYPORT_DISABLE_SOURCE` | (empty) | Blocks `GET /tabs/{id}/source`. |
+| `SALLYPORT_DISABLE_ACTIONS` | (empty) | Blocks click, type, and scroll endpoints. |
+
+Disabling a feature makes its endpoints return HTTP 503 with the env var name in the error detail.
+
+Check current flags at runtime:
+```bash
+curl http://localhost:9378/config
+```
 
 ## Copy for agent
 
@@ -161,3 +216,7 @@ Full guide: https://github.com/melxusgid/sallyport
 ## License
 
 MIT. The upstream Fortress engine is BSD-3.
+
+---
+
+*Built by [FromTheScope](https://buymeacoffee.com/fromthescope). If Sallyport saves you time or money, [coffee's appreciated ☕](https://buymeacoffee.com/fromthescope).*

@@ -18,6 +18,18 @@ SALLYPORT_PORT = int(os.environ.get("SALLYPORT_PORT", "9378"))
 FORT_CHANNEL = os.environ.get("FORT_CHANNEL", "stable")
 FORT_PORT = int(os.environ.get("FORT_PORT", "9222"))
 
+# --- Feature flags / kill switches ---
+# Each flag disables a specific capability. Set to "true" or "1" to disable.
+# These let operators minimize surface area or opt out of features they don't trust.
+DISABLE_SNAPSHOT = os.environ.get("SALLYPORT_DISABLE_SNAPSHOT", "").lower() in ("true", "1")
+DISABLE_JS_EVAL = os.environ.get("SALLYPORT_DISABLE_JS_EVAL", "").lower() in ("true", "1")
+DISABLE_SCREENSHOT = os.environ.get("SALLYPORT_DISABLE_SCREENSHOT", "").lower() in ("true", "1")
+DISABLE_SOURCE = os.environ.get("SALLYPORT_DISABLE_SOURCE", "").lower() in ("true", "1")
+DISABLE_ACTIONS = os.environ.get("SALLYPORT_DISABLE_ACTIONS", "").lower() in ("true", "1")
+DISABLE_AUTO_SNAPSHOT = os.environ.get("SALLYPORT_DISABLE_AUTO_SNAPSHOT", "").lower() in ("true", "1")
+# When set, POST /tabs returns only tab_id + url (no snapshot). Useful for
+# head-of-line blocking avoidance when the snapshot isn't needed immediately.
+
 # --- App ---
 app = FastAPI(
     title="Sallyport",
@@ -123,6 +135,28 @@ _session_id = os.environ.get("SALLYPORT_SESSION_ID", os.urandom(8).hex())
 
 # --- Routes ---
 
+@app.get("/config")
+def config():
+    """Return current server configuration and feature flag state."""
+    return {
+        "version": "0.1.0",
+        "host": SALLYPORT_HOST,
+        "port": SALLYPORT_PORT,
+        "fortress": {
+            "channel": FORT_CHANNEL,
+            "cdp_port": FORT_PORT,
+        },
+        "features": {
+            "snapshot": not DISABLE_SNAPSHOT,
+            "auto_snapshot": not DISABLE_AUTO_SNAPSHOT,
+            "js_eval": not DISABLE_JS_EVAL,
+            "screenshot": not DISABLE_SCREENSHOT,
+            "source": not DISABLE_SOURCE,
+            "actions": not DISABLE_ACTIONS,
+        },
+    }
+
+
 @app.get("/health", response_model=HealthResponse)
 def health():
     """Health check — returns server status and tab count."""
@@ -166,7 +200,16 @@ def tab_open(req: TabOpenRequest):
     if not engine._running:
         raise HTTPException(status_code=400, detail="Browser not started. POST /browser/start first.")
 
-    tab = engine.open_tab(url=req.url, wait_ms=req.wait_ms, wait_for=req.wait_for, timeout_ms=req.timeout_ms)
+    tab = engine.open_tab(url=req.url, wait_ms=req.wait_ms if not DISABLE_AUTO_SNAPSHOT else 0, wait_for=req.wait_for, timeout_ms=req.timeout_ms)
+
+    if DISABLE_SNAPSHOT or DISABLE_AUTO_SNAPSHOT:
+        return TabOpenResponse(
+            tab_id=tab.tab_id,
+            url=tab.url,
+            snapshot="",
+            refs_count=0,
+        )
+
     snapshot = engine.snapshot_tab(tab.tab_id)
 
     return TabOpenResponse(
@@ -180,6 +223,9 @@ def tab_open(req: TabOpenRequest):
 @app.get("/tabs/{tab_id}/snapshot", response_model=TabSnapshotResponse)
 def tab_snapshot(tab_id: str, wait_ms: int = 0):
     """Get the accessibility tree snapshot for a tab."""
+    if DISABLE_SNAPSHOT:
+        raise HTTPException(status_code=503, detail=f"Snapshot disabled (SALLYPORT_DISABLE_SNAPSHOT)")
+
     tab = engine.get_tab(tab_id)
     if not tab:
         raise HTTPException(status_code=404, detail=f"Tab {tab_id} not found")
@@ -199,6 +245,9 @@ def tab_snapshot(tab_id: str, wait_ms: int = 0):
 @app.post("/tabs/{tab_id}/click", response_model=ActionResponse)
 def tab_click(tab_id: str, req: ClickRequest):
     """Click an element by CSS selector or text match."""
+    if DISABLE_ACTIONS:
+        raise HTTPException(status_code=503, detail=f"Actions disabled (SALLYPORT_DISABLE_ACTIONS)")
+
     tab = engine.get_tab(tab_id)
     if not tab:
         raise HTTPException(status_code=404, detail=f"Tab {tab_id} not found")
@@ -213,6 +262,9 @@ def tab_click(tab_id: str, req: ClickRequest):
 @app.post("/tabs/{tab_id}/type", response_model=ActionResponse)
 def tab_type(tab_id: str, req: TypeRequest):
     """Type text into an element identified by CSS selector."""
+    if DISABLE_ACTIONS:
+        raise HTTPException(status_code=503, detail=f"Actions disabled (SALLYPORT_DISABLE_ACTIONS)")
+
     tab = engine.get_tab(tab_id)
     if not tab:
         raise HTTPException(status_code=404, detail=f"Tab {tab_id} not found")
@@ -227,6 +279,9 @@ def tab_type(tab_id: str, req: TypeRequest):
 @app.post("/tabs/{tab_id}/evaluate", response_model=ActionResponse)
 def tab_evaluate(tab_id: str, req: EvaluateRequest):
     """Execute JavaScript in the page context."""
+    if DISABLE_JS_EVAL:
+        raise HTTPException(status_code=503, detail=f"JavaScript evaluation disabled (SALLYPORT_DISABLE_JS_EVAL)")
+
     tab = engine.get_tab(tab_id)
     if not tab:
         raise HTTPException(status_code=404, detail=f"Tab {tab_id} not found")
@@ -255,6 +310,9 @@ def tab_navigate(tab_id: str, req: NavigateRequest):
 @app.get("/tabs/{tab_id}/source")
 def tab_source(tab_id: str):
     """Get the rendered HTML source of a tab."""
+    if DISABLE_SOURCE:
+        raise HTTPException(status_code=503, detail=f"Source retrieval disabled (SALLYPORT_DISABLE_SOURCE)")
+
     tab = engine.get_tab(tab_id)
     if not tab:
         raise HTTPException(status_code=404, detail=f"Tab {tab_id} not found")
@@ -278,6 +336,9 @@ def tab_list():
 @app.post("/tabs/{tab_id}/scroll", response_model=ActionResponse)
 def tab_scroll(tab_id: str, req: ScrollRequest):
     """Scroll the page in a direction."""
+    if DISABLE_ACTIONS:
+        raise HTTPException(status_code=503, detail=f"Actions disabled (SALLYPORT_DISABLE_ACTIONS)")
+
     tab = engine.get_tab(tab_id)
     if not tab:
         raise HTTPException(status_code=404, detail=f"Tab {tab_id} not found")
@@ -298,6 +359,9 @@ def tab_scroll(tab_id: str, req: ScrollRequest):
 @app.post("/tabs/{tab_id}/screenshot", response_model=ActionResponse)
 def tab_screenshot(tab_id: str, req: ScreenshotRequest):
     """Take a screenshot of the tab — returns base64 PNG."""
+    if DISABLE_SCREENSHOT:
+        raise HTTPException(status_code=503, detail=f"Screenshots disabled (SALLYPORT_DISABLE_SCREENSHOT)")
+
     tab = engine.get_tab(tab_id)
     if not tab:
         raise HTTPException(status_code=404, detail=f"Tab {tab_id} not found")

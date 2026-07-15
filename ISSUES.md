@@ -169,4 +169,5 @@ The multi-stage build copies the full Playwright/Chromium install from builder t
 
 | Date | What |
 |------|------|
+| 2026-07-15 | Added kill switches (SALLYPORT_DISABLE_* env vars) and /config endpoint. Added BENCHMARKS.md with measured latency data. Published worst-case in README comparison table. |
 | 2026-07-08 | Initial audit — 12 issues logged, file created |
